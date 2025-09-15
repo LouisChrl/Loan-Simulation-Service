@@ -1,0 +1,56 @@
+@startuml
+title Sequence – Loan request end-to-end
+
+actor Client
+participant "GraphQL BackEnd for FrontEnd" as BFF
+participant "Loan Orchestrator (REST)" as ORCH
+participant "Risk Scoring (gRPC)" as RISK
+participant "Bank Check Validation (SOAP)" as SOAP
+participant "Provider Funding (REST)" as PROV
+database "PostgreSQL" as DB
+
+== Loan creation ==
+Client -> BFF : mutation createLoan(customerId, accountId, type, amount, desc)
+BFF -> ORCH : POST /loans { ... }
+ORCH -> DB : INSERT loan_application(status='pending')
+ORCH -> DB : INSERT loan_monitoring(...)
+ORCH -> ORCH : check MAX_LOAN_AMOUNT
+alt amount > MAX_LOAN_AMOUNT
+  ORCH -> DB : UPDATE loan_application SET status='cancelled'
+  ORCH --> BFF : {status:'cancelled'}
+  BFF --> Client : cancelled
+  return
+else amount OK
+  ORCH -> RISK : Score(customerId, amount, type)
+  RISK --> ORCH : {riskLevel}
+  alt riskLevel='high' and amount>=20000
+    ORCH -> DB : UPDATE loan_application SET status='declined'
+    ORCH --> BFF : {status:'declined'}
+    BFF --> Client : declined
+    return
+  else continue
+    ORCH --> BFF : {status:'pending'} (waiting for cashier's check)
+    BFF --> Client : pending
+  end
+end
+
+== Cashier's check submission ==
+Client -> BFF : mutation submitCheck(loanId, accountId, checkNumber, ...)
+BFF -> ORCH : POST /loans/{id}/check { ... }
+ORCH -> DB : INSERT cashier_check(is_valid=false)
+ORCH -> SOAP : ValidateCashierCheck(...)
+SOAP --> ORCH : {isValid:true|false}
+alt invalid check
+  ORCH -> DB : UPDATE loan_application SET status='declined'
+  ORCH --> BFF : {status:'declined'}
+  BFF --> Client : declined
+else valid check
+  ORCH -> DB : UPDATE loan_application SET status='approved'
+  ORCH -> PROV : POST /fund {applicationId, accountId, amount}
+  PROV --> ORCH : {transferId, status:'funded'}
+  ORCH -> DB : UPDATE loan_monitoring SET loan_provider_status='funded'
+  ORCH --> BFF : {status:'approved', transferId}
+  BFF --> Client : approved
+end
+
+@enduml

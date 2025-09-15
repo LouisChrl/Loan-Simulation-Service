@@ -1,0 +1,47 @@
+@startuml
+
+title Microservices Architecture — Loan Request
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam wrapWidth 200
+skinparam defaultFontName Monospace
+left to right direction
+
+actor "Client App\n(Web / Mobile)" as Client
+
+component "Loan Portal BackEnd for FrontEnd\n<<GraphQL>>" as BFF
+component "Loan Orchestrator\n<<REST>>" as Orchestrator
+component "Accounts Service\n<<REST>>" as Accounts
+component "Risk Scoring\n<<gRPC>>" as Risk
+component "Bank Check Validation\n<<SOAP>>" as CheckSOAP
+component "Provider Funding\n<<REST>>" as Provider
+database "PostgreSQL\n(loan_application,\nloan_monitoring,\ncustomer/account/bank/txn)" as DB
+
+' Client ↔ facade relations
+Client -[#DarkSlateGray]-> BFF : GraphQL over HTTP\n(query/mutation)
+
+' BFF queries services to aggregate
+BFF -[#DarkSlateGray]-> Orchestrator : REST (JSON)
+BFF -[#DarkSlateGray]-> Accounts : REST (JSON)
+
+' Orchestrator applies rules & calls partner services
+Orchestrator -[#DarkSlateGray]-> Risk : gRPC
+Orchestrator -[#DarkSlateGray]-> CheckSOAP : SOAP/XML
+Orchestrator -[#DarkSlateGray]-> Provider : REST (JSON)
+
+' Database access
+Orchestrator -[#DarkSlateGray]-> DB : SQL (psycopg/ORM)
+Accounts -[#DarkSlateGray]-> DB : SQL (psycopg/ORM)
+
+' Helpful notes
+note right of Orchestrator
+  Key rules:
+  - amount ceiling
+  - auto-decline if risk=high & amount ≥ 20000
+  - cashier's check request/validation
+  - request provider funds
+  - status & notification
+end note
+
+@enduml
