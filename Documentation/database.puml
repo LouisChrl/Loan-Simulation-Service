@@ -1,0 +1,81 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor WhiteSmoke
+  BorderColor DarkSlateGray
+  ArrowColor DarkSlateGray
+}
+
+' Définition des entités avec couleurs spécifiques pour PK et FK
+class Customer {
+  + **id : Integer {PK}**
+  full_name : String
+  email : String
+}
+
+class Bank {
+  + **id : Integer {PK}**
+  name : String
+  account_number_validity_pattern : String
+  cashier_check_validity_pattern : String
+}
+
+class Account {
+  + **id : Integer {PK}**
+  <color:Blue>customer_id : Integer {FK}</color>
+  <color:Blue>bank_id : Integer {FK}</color>
+  account_number : String
+  balance : Decimal
+  created_at : Timestamp
+  updated_at : Timestamp
+}
+
+class BankingTransaction {
+  + **id : Integer {PK}**
+  <color:Blue>account_id : Integer {FK}</color>
+  transaction_type : String
+  amount : Decimal
+  transaction_date : Timestamp
+}
+
+class LoanApplication {
+  + **id : Integer {PK}**
+  <color:Blue>account_id : Integer {FK}</color>
+  loan_type : String
+  loan_amount : Decimal
+  loan_description : Text
+  status : String
+  created_at : Timestamp
+}
+
+class CashierCheck {
+  + **id : Integer {PK}**
+  <color:Blue>account_id : Integer {FK}</color>
+  check_number : String
+  issue_date : Timestamp
+  amount : Decimal
+  is_valid : Boolean
+  created_at : Timestamp
+}
+
+class LoanMonitoring {
+  + **id : Integer {PK}**
+  <color:Blue>loan_application_id : Integer {FK}</color>
+  monitoring_date : Timestamp
+  risk_status : String
+  check_validation_status : String
+  loan_provider_status : String
+  notification_status : String
+  customer_status : String
+}
+
+' Relations explicites avec cardinalités
+Customer "1" -- "0..n" Account
+Bank "1" -- "0..n" Account
+Account "1" -- "0..n" BankingTransaction
+Account "1" -- "0..n" CashierCheck
+Account "1" -- "0..n" LoanApplication
+LoanApplication "1" -- "1" LoanMonitoring
+
+@enduml
