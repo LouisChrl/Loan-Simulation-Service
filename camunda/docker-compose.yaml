@@ -48,6 +48,7 @@ services:
       - zeebe:/usr/local/zeebe/data
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - elasticsearch
       - identity
@@ -92,6 +93,7 @@ services:
       - operate_tmp:/tmp
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - zeebe
       - identity
@@ -138,6 +140,7 @@ services:
       - tasklist_tmp:/tmp
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       zeebe:
         condition: service_started
@@ -177,6 +180,7 @@ services:
       start_period: 30s
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - zeebe
       - operate
@@ -215,6 +219,7 @@ services:
     restart: on-failure
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - identity
       - elasticsearch
@@ -287,6 +292,7 @@ services:
     networks:
       - camunda-platform
       - identity-network
+      - loan_app_backend
     depends_on:
       keycloak:
         condition: service_healthy
@@ -308,6 +314,7 @@ services:
       - postgres:/var/lib/postgresql/data
     networks:
       - identity-network
+      - loan_app_backend
 
   keycloak: # https://hub.docker.com/r/bitnamilegacy/keycloak
     container_name: keycloak
@@ -333,6 +340,7 @@ services:
     networks:
       - camunda-platform
       - identity-network
+      - loan_app_backend
     depends_on:
       - postgres
 
@@ -363,6 +371,7 @@ services:
       - elastic:/usr/share/elasticsearch/data
     networks:
       - camunda-platform
+      - loan_app_backend
 
   web-modeler-db:
     container_name: web-modeler-db
@@ -378,6 +387,7 @@ services:
       POSTGRES_PASSWORD: web-modeler-db-password
     networks:
       - web-modeler
+      - loan_app_backend
     volumes:
       - postgres-web:/var/lib/postgresql/data
 
@@ -395,6 +405,7 @@ services:
       interval: 30s
     networks:
       - web-modeler
+      - loan_app_backend
 
   web-modeler-restapi:
     container_name: web-modeler-restapi
@@ -444,6 +455,7 @@ services:
     networks:
       - web-modeler
       - camunda-platform
+      - loan_app_backend
 
   web-modeler-webapp:
     container_name: web-modeler-webapp
@@ -480,6 +492,7 @@ services:
     networks:
       - web-modeler
       - camunda-platform
+      - loan_app_backend
 
   web-modeler-websockets:
     container_name: web-modeler-websockets
@@ -499,6 +512,7 @@ services:
       PUSHER_APP_SECRET: web-modeler-app-secret
     networks:
       - web-modeler
+      - loan_app_backend
 
 volumes:
   zeebe:
@@ -518,3 +532,5 @@ networks:
   camunda-platform:
   identity-network:
   web-modeler:
+  loan_app_backend:
+    external: true

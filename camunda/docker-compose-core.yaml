@@ -39,6 +39,7 @@ services:
       - zeebe:/usr/local/zeebe/data
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - elasticsearch
 
@@ -63,6 +64,7 @@ services:
       start_period: 30s
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - zeebe
       - elasticsearch
@@ -89,6 +91,7 @@ services:
       start_period: 30s
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - zeebe
       - elasticsearch
@@ -115,6 +118,7 @@ services:
     env_file: connector-secrets.txt
     networks:
       - camunda-platform
+      - loan_app_backend
     depends_on:
       - zeebe
       - operate
@@ -146,6 +150,7 @@ services:
       - elastic:/usr/share/elasticsearch/data
     networks:
       - camunda-platform
+      - loan_app_backend
 
 volumes:
   zeebe:
@@ -153,3 +158,5 @@ volumes:
 
 networks:
   camunda-platform:
+  loan_app_backend:
+    external: true
