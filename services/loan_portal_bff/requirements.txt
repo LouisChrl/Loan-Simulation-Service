@@ -1,0 +1,5 @@
+strawberry-graphql[fastapi]
+uvicorn[standard]
+httpx
+aiodataloader
+pydantic-settings

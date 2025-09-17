@@ -1,5 +1,6 @@
 services:
 
+  # --- Database --------------------------------------------------------------
   db:
     image: postgres:16-alpine
     container_name: loan_db
@@ -10,17 +11,110 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - db_data:/var/lib/postgresql/data # Persist Data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql # Initialize the database with a script
-      - ./db/sample_data.sql:/docker-entrypoint-initdb.d/sample_data.sql # Add sample data script in the same way
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./db/sample_data.sql:/docker-entrypoint-initdb.d/02_sample_data.sql:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1 -p ${CONTAINER_DB_PORT}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend]
   
   adminer:
     image: adminer
     container_name: adminer
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: always
     ports:
-      - "${ADMINER_PORT}:${ADMINER_PORT}" # Exposed for database management (Development only)
+      - "${ADMINER_PORT}:${CONTAINER_ADMINER_PORT}" # Exposed for database management (Development only)
+    networks: [backend]
+  
+  # --- Accounts (REST) -------------------------------------------------------
+  # accounts:
+  #   build: ./services/accounts
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${CONTAINER_DB_PORT}/${POSTGRES_DB}
+  #     PORT: ${CONTAINER_REST_PORT}
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   ports:
+  #     - "${ACCOUNTS_PORT}:${CONTAINER_REST_PORT}"
+  #   networks: [backend]
+  
+  # --- Loan Orchestrator (REST) ---------------------------------------------
+  # loan_orchestrator:
+  #   build: ./services/loan_orchestrator
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${CONTAINER_DB_PORT}/${POSTGRES_DB}
+  #     MAX_LOAN_AMOUNT: ${MAX_LOAN_AMOUNT:-50000}
+  #     RISK_GRPC_ADDR: risk_scoring:${CONTAINER_GRPC_PORT}
+  #     SOAP_CHECK_URL: http://bank_check_validation:${CONTAINER_SOAP_PORT}/ws
+  #     PROVIDER_URL: http://provider_funding:${CONTAINER_REST_PORT}/fund
+  #     SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+  #     PORT: ${CONTAINER_REST_PORT}
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     risk_scoring:
+  #       condition: service_started
+  #     bank_check_validation:
+  #       condition: service_started
+  #     provider_funding:
+  #       condition: service_started
+  #   ports:
+  #     - "${ORCH_PORT}:${CONTAINER_REST_PORT}"
+  #   networks: [backend]
+  
+  # --- Risk Scoring (gRPC) ---------------------------------------------------
+  # risk_scoring:
+  #   build: ./services/risk_scoring
+  #   environment:
+  #     PORT: ${CONTAINER_GRPC_PORT}
+  #   ports:
+  #     - "${RISK_PORT}:${CONTAINER_GRPC_PORT}"
+  #   networks: [backend]
+  
+  # --- Bank Check Validation (SOAP) -----------------------------------------
+  # bank_check_validation:
+  #   build: ./services/bank_check_validation
+  #   environment:
+  #     PORT: ${CONTAINER_SOAP_PORT}
+  #   ports:
+  #     - "${SOAP_PORT}:${CONTAINER_SOAP_PORT}"
+  #   networks: [backend]
+  
+  # --- Provider Funding (REST, stub) ----------------------------------------
+  # provider_funding:
+  #   build: ./services/provider_funding
+  #   environment:
+  #     PORT: ${CONTAINER_REST_PORT}
+  #   ports:
+  #     - "${PROVIDER_PORT}:${CONTAINER_REST_PORT}"
+  #   networks: [backend]
+  
+  # --- Loan Portal BFF (GraphQL) --------------------------------------------
+  loan_portal_bff:
+    build: ./services/loan_portal_bff
+    environment:
+      LOAN_API_URL: http://loan_orchestrator:${CONTAINER_REST_PORT}
+      ACCOUNTS_API_URL: http://accounts:${CONTAINER_REST_PORT}
+      PORT: ${CONTAINER_BFF_PORT}
+    # depends_on:
+    #   loan_orchestrator:
+    #     condition: service_started
+    #   accounts:
+    #     condition: service_started
+    ports:
+      - "${BFF_PORT}:${CONTAINER_BFF_PORT}"
+    networks: [backend]
 
 volumes:
     db_data:
+
+networks:
+  backend:
+    driver: bridge
