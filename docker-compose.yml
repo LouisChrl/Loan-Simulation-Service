@@ -19,7 +19,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    networks: [backend]
+    networks:
+      loan_app_backend:
+        aliases: [loan_db]
   
   adminer:
     image: adminer
@@ -30,7 +32,9 @@ services:
     restart: always
     ports:
       - "${ADMINER_PORT}:${CONTAINER_ADMINER_PORT}" # Exposed for database management (Development only)
-    networks: [backend]
+    networks:
+      loan_app_backend:
+        aliases: [adminer]
   
   # --- Accounts (REST) -------------------------------------------------------
   # accounts:
@@ -43,7 +47,9 @@ services:
   #       condition: service_healthy
   #   ports:
   #     - "${ACCOUNTS_PORT}:${CONTAINER_REST_PORT}"
-  #   networks: [backend]
+  #   networks:
+  #     loan_app_backend:
+  #       aliases: [accounts]
   
   # --- Loan Orchestrator (REST) ---------------------------------------------
   # loan_orchestrator:
@@ -67,7 +73,9 @@ services:
   #       condition: service_started
   #   ports:
   #     - "${ORCH_PORT}:${CONTAINER_REST_PORT}"
-  #   networks: [backend]
+  #   networks:
+  #     loan_app_backend:
+  #       aliases: [loan_orchestrator]
   
   # --- Risk Scoring (gRPC) ---------------------------------------------------
   # risk_scoring:
@@ -76,7 +84,9 @@ services:
   #     PORT: ${CONTAINER_GRPC_PORT}
   #   ports:
   #     - "${RISK_PORT}:${CONTAINER_GRPC_PORT}"
-  #   networks: [backend]
+  #   networks:
+  #     loan_app_backend:
+  #       aliases: [risk_scoring]
   
   # --- Bank Check Validation (SOAP) -----------------------------------------
   # bank_check_validation:
@@ -85,7 +95,9 @@ services:
   #     PORT: ${CONTAINER_SOAP_PORT}
   #   ports:
   #     - "${SOAP_PORT}:${CONTAINER_SOAP_PORT}"
-  #   networks: [backend]
+  #   networks:
+  #     loan_app_backend:
+  #       aliases: [bank_check_validation]
   
   # --- Provider Funding (REST, stub) ----------------------------------------
   # provider_funding:
@@ -94,7 +106,9 @@ services:
   #     PORT: ${CONTAINER_REST_PORT}
   #   ports:
   #     - "${PROVIDER_PORT}:${CONTAINER_REST_PORT}"
-  #   networks: [backend]
+  #   networks:
+  #      loan_app_backend:
+  #        aliases: [provider_funding]
   
   # --- Loan Portal BFF (GraphQL) --------------------------------------------
   loan_portal_bff:
@@ -110,11 +124,13 @@ services:
     #     condition: service_started
     ports:
       - "${BFF_PORT}:${CONTAINER_BFF_PORT}"
-    networks: [backend]
+    networks:
+      loan_app_backend:
+        aliases: [loan_portal_bff]
 
 volumes:
     db_data:
 
 networks:
-  backend:
-    driver: bridge
+  loan_app_backend:
+    external: true
