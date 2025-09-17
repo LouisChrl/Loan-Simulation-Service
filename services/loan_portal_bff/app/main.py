@@ -3,9 +3,9 @@ import uvicorn
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
-from app.graph.schema import Query
+from graph.schema import Query
 
-CONTAINER_BFF_PORT = int(os.getenv("CONTAINER_BFF_PORT"))
+PORT = int(os.getenv("PORT"))
 
 # GraphQL Route and Schema
 schema = strawberry.Schema(query=Query)
@@ -20,4 +20,4 @@ def health() -> dict:
     return {"status": "ok"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=CONTAINER_BFF_PORT)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
