@@ -58,7 +58,7 @@ services:
   #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${CONTAINER_DB_PORT}/${POSTGRES_DB}
   #     MAX_LOAN_AMOUNT: ${MAX_LOAN_AMOUNT:-50000}
   #     RISK_GRPC_ADDR: risk_scoring:${CONTAINER_GRPC_PORT}
-  #     SOAP_CHECK_URL: http://bank_check_validation:${CONTAINER_SOAP_PORT}/ws
+  #     SOAP_CHECK_URL: http://bank_check_validation:${container_rest_port}/ws
   #     PROVIDER_URL: http://provider_funding:${CONTAINER_REST_PORT}/fund
   #     SENDGRID_API_KEY: ${SENDGRID_API_KEY}
   #     PORT: ${CONTAINER_REST_PORT}
@@ -88,7 +88,7 @@ services:
   #     loan_app_backend:
   #       aliases: [risk_scoring]
   
-  # --- Bank Check Validation (SOAP) -----------------------------------------
+  # --- Bank Check Validation (REST) -----------------------------------------
   bank_check_validation:
     build: ./services/bank_check_validation
     environment:
@@ -97,9 +97,9 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
-      PORT: ${CONTAINER_SOAP_PORT}
+      PORT: ${CONTAINER_REST_PORT}
     ports:
-      - "${SOAP_PORT}:${CONTAINER_SOAP_PORT}"
+      - "${CHECK_PORT}:${CONTAINER_REST_PORT}"
     networks:
       loan_app_backend:
         aliases: [bank_check_validation]
@@ -121,6 +121,7 @@ services:
     environment:
       LOAN_API_URL: http://loan_orchestrator:${CONTAINER_REST_PORT}
       ACCOUNTS_API_URL: http://accounts:${CONTAINER_REST_PORT}
+      CONTAINER_REST_PORT: ${CONTAINER_REST_PORT}
       PORT: ${CONTAINER_BFF_PORT}
     depends_on:
       bank_check_validation:
@@ -137,6 +138,7 @@ services:
 
 volumes:
     db_data:
+        name: loan_db_data
 
 networks:
   loan_app_backend:
