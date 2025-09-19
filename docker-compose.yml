@@ -89,15 +89,20 @@ services:
   #       aliases: [risk_scoring]
   
   # --- Bank Check Validation (SOAP) -----------------------------------------
-  # bank_check_validation:
-  #   build: ./services/bank_check_validation
-  #   environment:
-  #     PORT: ${CONTAINER_SOAP_PORT}
-  #   ports:
-  #     - "${SOAP_PORT}:${CONTAINER_SOAP_PORT}"
-  #   networks:
-  #     loan_app_backend:
-  #       aliases: [bank_check_validation]
+  bank_check_validation:
+    build: ./services/bank_check_validation
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      PORT: ${CONTAINER_SOAP_PORT}
+    ports:
+      - "${SOAP_PORT}:${CONTAINER_SOAP_PORT}"
+    networks:
+      loan_app_backend:
+        aliases: [bank_check_validation]
   
   # --- Provider Funding (REST, stub) ----------------------------------------
   # provider_funding:
@@ -117,7 +122,9 @@ services:
       LOAN_API_URL: http://loan_orchestrator:${CONTAINER_REST_PORT}
       ACCOUNTS_API_URL: http://accounts:${CONTAINER_REST_PORT}
       PORT: ${CONTAINER_BFF_PORT}
-    # depends_on:
+    depends_on:
+      bank_check_validation:
+        condition: service_started
     #   loan_orchestrator:
     #     condition: service_started
     #   accounts:
