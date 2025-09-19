@@ -7,7 +7,6 @@ skinparam class {
   ArrowColor DarkSlateGray
 }
 
-' Définition des entités avec couleurs spécifiques pour PK et FK
 class Customer {
   + **id : Integer {PK}**
   full_name : String
@@ -43,13 +42,12 @@ class LoanApplication {
   status : String
 }
 
-class Check {
+class BankCheck {
   + **id : Integer {PK}**
-  <color:Blue>account_number : Integer {FK}</color>
+  <color:Blue>account_number : String {FK}</color>
   check_number : String
-  bank_id : String
   check_amount : Float
-  status : String
+  check_status : String
 }
 
 class LoanMonitoring {
@@ -63,11 +61,10 @@ class LoanMonitoring {
   customer_status : String
 }
 
-' Relations explicites avec cardinalités
 Customer "1" -- "0..n" Account
 Bank "1" -- "0..n" Account
 Account "1" -- "0..n" BankingTransaction
-Account "1" -- "0..n" Check
+Account "1" -- "0..n" BankCheck
 Account "1" -- "0..n" LoanApplication
 LoanApplication "1" -- "1" LoanMonitoring
 
