@@ -5,9 +5,9 @@ from orm.orm import Account, Bank
 def verifyAccountExistence(db: Session, account_number: str) -> bool:
     return db.query(Account).filter(Account.account_number == account_number).first() is not None
 
-def verifyAccountBalance(db: Session, account_number: str, required_amount: float) -> bool:
+def verifyAccountBalance(db: Session, account_number: str, check_amount: float) -> bool:
     acc = db.query(Account).filter(Account.account_number == account_number).first()
-    return bool(acc and acc.balance >= required_amount)
+    return bool(acc and acc.balance >= check_amount)
 
 def verifyBankPatternForAccount(db: Session, account_number: str) -> bool:
     # Validate Account Number VS Bank Pattern
