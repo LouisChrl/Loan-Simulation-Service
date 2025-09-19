@@ -1,6 +1,6 @@
 import re
 from sqlalchemy.orm import Session
-from orm.orm import Bank
+from orm.orm import Account, Bank
 
 def verifyBankExistence(db: Session, account_number: str) -> bool:
     acc = db.query(Account).filter(Account.account_number == account_number).first()
