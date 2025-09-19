@@ -15,7 +15,7 @@ class Query:
         return Loan(
             id = response["id"],
             loan_amount = response["loan_amount"],
-            status = response["status"]
+            loan_status = response["status"]
         )
     
     @strawberry.field
@@ -24,10 +24,9 @@ class Query:
         return Check(
             id = response["id"],
             check_number = response["check_number"],
-            bank_id = response["bank_id"],
             account_number = response["account_number"],
             check_amount = response["check_amount"],
-            status = response["status"]
+            check_status = response["status"]
         )
 
 # GraphQL Mutation (WRITE)
@@ -47,7 +46,7 @@ class Mutation:
                 id = response["loan"]["id"],
                 account_number = response["loan"]["account_number"],
                 loan_amount = response["loan"]["loan_amount"],
-                status = response["loan"]["status"]
+                loan_status = response["loan"]["loan_status"]
             )
         return LoanRequestResponse(
             success = bool(response["success"]),
@@ -60,11 +59,10 @@ class Mutation:
         payload = {
             "account_number": str(input.account_number),
             "check_number": str(input.check_number),
-            "check_bank_id": str(input.check_bank_id),
             "check_account_number": str(input.check_account_number),
             "check_amount": float(input.check_amount)
         }
-        response = post_json(CHECK_BASE, "/checks", payload)
+        response = post_json(CHECK_BASE, "/checks/deposit", payload)
         return CheckDepositResponse(
             success = response["success"],
             message = response["message"]

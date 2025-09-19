@@ -6,16 +6,15 @@ class Loan:
     id: strawberry.ID
     account_number: str
     loan_amount: float
-    status: str
+    loan_status: str
 
 @strawberry.type
 class Check:
     id: strawberry.ID
     check_number: str
-    bank_id: str
     account_number: str
     check_amount: float
-    status: str
+    check_status: str
 
 @strawberry.input
 class LoanRequestInput:
@@ -27,7 +26,6 @@ class LoanRequestInput:
 class CheckDepositInput:
     account_number: str
     check_number: str
-    check_bank_id: str
     check_account_number: str
     check_amount: float
 
