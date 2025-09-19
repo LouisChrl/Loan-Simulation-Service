@@ -24,8 +24,8 @@ class Account(Base):
     bank_id: Mapped[int] = mapped_column(ForeignKey("bank.id"), nullable=False)
     balance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
-class Check(Base):
-    __tablename__ = "cashier_check"
+class BankCheck(Base):
+    __tablename__ = "bank_check"
     id: Mapped[int] = mapped_column(primary_key=True)
     account_number: Mapped[str] = mapped_column(ForeignKey("account.account_number"), nullable=False)
     check_number: Mapped[str] = mapped_column(String(50), nullable=False)
