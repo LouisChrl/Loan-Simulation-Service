@@ -18,45 +18,38 @@ class Bank {
   + **id : Integer {PK}**
   name : String
   account_number_validity_pattern : String
-  cashier_check_validity_pattern : String
+  check_validity_pattern : String
 }
 
 class Account {
-  + **id : Integer {PK}**
+  + **account_number : String {PK}**
   <color:Blue>customer_id : Integer {FK}</color>
   <color:Blue>bank_id : Integer {FK}</color>
-  account_number : String
-  balance : Decimal
-  created_at : Timestamp
-  updated_at : Timestamp
+  balance : Float
 }
 
 class BankingTransaction {
   + **id : Integer {PK}**
-  <color:Blue>account_id : Integer {FK}</color>
+  <color:Blue>account_number : String {FK}</color>
   transaction_type : String
-  amount : Decimal
+  amount : Float
   transaction_date : Timestamp
 }
 
 class LoanApplication {
   + **id : Integer {PK}**
-  <color:Blue>account_id : Integer {FK}</color>
-  loan_type : String
+  <color:Blue>account_number : String {FK}</color>
   loan_amount : Decimal
-  loan_description : Text
   status : String
-  created_at : Timestamp
 }
 
-class CashierCheck {
+class Check {
   + **id : Integer {PK}**
-  <color:Blue>account_id : Integer {FK}</color>
+  <color:Blue>account_number : Integer {FK}</color>
   check_number : String
-  issue_date : Timestamp
-  amount : Decimal
-  is_valid : Boolean
-  created_at : Timestamp
+  bank_id : String
+  check_amount : Float
+  status : String
 }
 
 class LoanMonitoring {
@@ -74,7 +67,7 @@ class LoanMonitoring {
 Customer "1" -- "0..n" Account
 Bank "1" -- "0..n" Account
 Account "1" -- "0..n" BankingTransaction
-Account "1" -- "0..n" CashierCheck
+Account "1" -- "0..n" Check
 Account "1" -- "0..n" LoanApplication
 LoanApplication "1" -- "1" LoanMonitoring
 
