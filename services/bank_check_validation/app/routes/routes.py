@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from db.database import get_db, SessionLocal
-from orm.orm import Check
+from orm.orm import BankCheck
 from services.account_service import verifyAccountExistence, verifyAccountBalance
 from services.bank_service import verifyBankExistence, verifyCheckNumber
 
@@ -28,11 +28,11 @@ def deposit_check(payload: DepositCheckPayload, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Emitter account not found")
 
     # 2) Existence of the bank
-    if not verifyBankExistence(db, payload.check_bank_id):
+    if not verifyBankExistence(db, payload.account_number):
         raise HTTPException(status_code=400, detail="Bank not found")
 
     # 3) Check number validation
-    if not verifyCheckNumber(db, payload.check_bank_id, payload.check_number):
+    if not verifyCheckNumber(db, payload.account_number, payload.check_number):
         raise HTTPException(status_code=400, detail="Invalid check number format")
 
     # 4) Account balance validation
@@ -40,11 +40,11 @@ def deposit_check(payload: DepositCheckPayload, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
     # 5) Persistence for validated checks
-    check = Check(
+    check = BankCheck(
         account_number=payload.account_number,
         check_number=payload.check_number,
         check_amount=payload.check_amount,
-        status="validated"
+        check_status="issued"
     )
     db.add(check)
     db.commit()
@@ -54,7 +54,7 @@ def deposit_check(payload: DepositCheckPayload, db: Session = Depends(get_db)):
 
 @router.get("/{check_id}", response_model=CheckResponse)
 def get_check_information(check_id: int, db: Session = Depends(get_db)):
-    c = db.query(Check).filter(Check.id == check_id).first()
+    c = db.query(BankCheck).filter(BankCheck.id == check_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Check not found")
     return CheckResponse(
@@ -62,5 +62,5 @@ def get_check_information(check_id: int, db: Session = Depends(get_db)):
         check_number=c.check_number,
         account_number=str(c.account_number),
         check_amount=float(c.check_amount),
-        status=c.status
+        check_status=c.check_status
     )
