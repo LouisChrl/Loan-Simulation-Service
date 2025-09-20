@@ -19,14 +19,14 @@ class Query:
     #     )
     
     @strawberry.field
-    async def getCheckInformation(self, check_id:strawberry.ID) -> Check:
-        response = await get_json(CHECK_BASE,f"/checks/{check_id}")
+    async def getCheckInformation(self, check_number:str) -> Check:
+        response = await get_json(CHECK_BASE,f"/checks/{check_number}")
         return Check(
             id = response["id"],
             check_number = response["check_number"],
             account_number = response["account_number"],
             check_amount = response["check_amount"],
-            check_status = response["status"]
+            check_status = response["check_status"]
         )
 
 # GraphQL Mutation (WRITE)
