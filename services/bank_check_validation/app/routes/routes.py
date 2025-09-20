@@ -32,16 +32,16 @@ def deposit_check(payload: DepositCheckPayload, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Bank not found")
 
     # 3) Check number validation
-    if not verifyCheckNumber(db, payload.account_number, payload.check_number):
+    if not verifyCheckNumber(db, payload.check_account_number, payload.check_number):
         raise HTTPException(status_code=400, detail="Invalid check number format")
 
     # 4) Account balance validation
-    if not verifyAccountBalance(db, payload.account_number, payload.check_amount):
+    if not verifyAccountBalance(db, payload.check_account_number, payload.check_amount):
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
     # 5) Persistence for validated checks
     check = BankCheck(
-        account_number=payload.account_number,
+        account_number=payload.check_account_number,
         check_number=payload.check_number,
         check_amount=payload.check_amount,
         check_status="issued"
