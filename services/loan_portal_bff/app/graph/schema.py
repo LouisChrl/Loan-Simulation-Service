@@ -62,8 +62,8 @@ class Mutation:
             "check_account_number": str(input.check_account_number),
             "check_amount": float(input.check_amount)
         }
-        response = post_json(CHECK_BASE, "/checks/deposit", payload)
+        response = await post_json(CHECK_BASE, "/checks/deposit", payload)
         return CheckDepositResponse(
-            success = response["success"],
-            message = response["message"]
+            success = bool(response.get("success")),
+            message = bool(response.get("message"))
         )
