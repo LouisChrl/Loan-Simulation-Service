@@ -2,13 +2,14 @@ import os
 import uvicorn
 import strawberry
 from fastapi import FastAPI
+from strawberry.schema.config import StrawberryConfig
 from strawberry.fastapi import GraphQLRouter
 from graph.schema import Query, Mutation
 
 PORT = int(os.getenv("PORT"))
 
 # GraphQL Route and Schema
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+schema = strawberry.Schema(query=Query, mutation=Mutation, config=StrawberryConfig(auto_camel_case=False))
 graphql_app = GraphQLRouter(schema)
 
 # FastAPI app initialization
