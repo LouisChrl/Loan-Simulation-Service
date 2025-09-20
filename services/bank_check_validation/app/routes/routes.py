@@ -52,9 +52,9 @@ def deposit_check(payload: DepositCheckPayload, db: Session = Depends(get_db)):
 
     return {"success": True, "message": "The check deposit was successful", "checkId": check.id}
 
-@router.get("/{check_id}", response_model=CheckResponse)
-def get_check_information(check_id: int, db: Session = Depends(get_db)):
-    c = db.query(BankCheck).filter(BankCheck.id == check_id).first()
+@router.get("/{check_number}", response_model=CheckResponse)
+def get_check_information(check_number: str, db: Session = Depends(get_db)):
+    c = db.query(BankCheck).filter(BankCheck.check_number == check_number).first()
     if not c:
         raise HTTPException(status_code=404, detail="Check not found")
     return CheckResponse(
