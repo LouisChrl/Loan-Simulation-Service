@@ -47,17 +47,15 @@ CREATE TABLE IF NOT EXISTS banking_transaction (
 );
 
 -- =========================
--- LoanApplication
+-- Loan
 -- =========================
-CREATE TABLE IF NOT EXISTS loan_application (
+CREATE TABLE IF NOT EXISTS loan (
   id BIGSERIAL PRIMARY KEY,
   account_number VARCHAR(32) NOT NULL REFERENCES account(account_number) ON DELETE CASCADE,
-  loan_type VARCHAR(20) NOT NULL,
   loan_amount NUMERIC(15, 2) NOT NULL,
-  loan_description TEXT,
-  status VARCHAR(20) NOT NULL,
+  loan_status VARCHAR(20) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT loan_status_chk CHECK (status IN ('pending','approved','rejected','cancelled')),
+  CONSTRAINT loan_status_chk CHECK (loan_status IN ('PENDING','APPROVED','REJECTED','CANCELLED', 'REVIEW')),
   CONSTRAINT loan_amount_pos_chk CHECK (loan_amount > 0)
 );
 
@@ -79,13 +77,9 @@ CREATE TABLE IF NOT EXISTS bank_check (
 -- LoanMonitoring
 -- =========================
 CREATE TABLE IF NOT EXISTS loan_monitoring (
-  loan_application_id BIGINT PRIMARY KEY REFERENCES loan_application(id) ON DELETE CASCADE,
-  monitoring_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+  loan_id BIGINT PRIMARY KEY REFERENCES loan(id) ON DELETE CASCADE,
   risk_status VARCHAR(100),
-  check_validation_status VARCHAR(100),
-  loan_provider_status VARCHAR(100),
-  notification_status VARCHAR(100),
-  customer_status VARCHAR(100)
+  loan_provider_status VARCHAR(100)
 );
 
 -- =========================
@@ -95,7 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_account_customer ON account(customer_id);
 CREATE INDEX IF NOT EXISTS idx_account_bank     ON account(bank_id);
 CREATE INDEX IF NOT EXISTS idx_tx_account       ON banking_transaction(account_number);
 CREATE INDEX IF NOT EXISTS idx_tx_date          ON banking_transaction(transaction_date);
-CREATE INDEX IF NOT EXISTS idx_loan_account     ON loan_application(account_number);
+CREATE INDEX IF NOT EXISTS idx_loan_account     ON loan(account_number);
 CREATE INDEX IF NOT EXISTS idx_check_account    ON bank_check(account_number);
 
 -- =========================

@@ -35,11 +35,11 @@ class BankingTransaction {
   transaction_date : Timestamp
 }
 
-class LoanApplication {
+class Loan {
   + **id : Integer {PK}**
   <color:Blue>account_number : String {FK}</color>
-  loan_amount : Decimal
-  status : String
+  loan_amount : Float
+  loan_status : String
 }
 
 class BankCheck {
@@ -52,20 +52,16 @@ class BankCheck {
 
 class LoanMonitoring {
   + **id : Integer {PK}**
-  <color:Blue>loan_application_id : Integer {FK}</color>
-  monitoring_date : Timestamp
+  <color:Blue>loan_id : Integer {FK}</color>
   risk_status : String
-  check_validation_status : String
   loan_provider_status : String
-  notification_status : String
-  customer_status : String
 }
 
 Customer "1" -- "0..n" Account
 Bank "1" -- "0..n" Account
 Account "1" -- "0..n" BankingTransaction
 Account "1" -- "0..n" BankCheck
-Account "1" -- "0..n" LoanApplication
-LoanApplication "1" -- "1" LoanMonitoring
+Account "1" -- "0..n" Loan
+Loan "1" -- "1" LoanMonitoring
 
 @enduml
