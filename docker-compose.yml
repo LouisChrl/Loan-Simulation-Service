@@ -36,57 +36,43 @@ services:
       loan_app_backend:
         aliases: [adminer]
   
-  # --- Accounts (REST) -------------------------------------------------------
-  # accounts:
-  #   build: ./services/accounts
-  #   environment:
-  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${CONTAINER_DB_PORT}/${POSTGRES_DB}
-  #     PORT: ${CONTAINER_REST_PORT}
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   ports:
-  #     - "${ACCOUNTS_PORT}:${CONTAINER_REST_PORT}"
-  #   networks:
-  #     loan_app_backend:
-  #       aliases: [accounts]
-  
   # --- Loan Orchestrator (REST) ---------------------------------------------
-  # loan_orchestrator:
-  #   build: ./services/loan_orchestrator
-  #   environment:
-  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${CONTAINER_DB_PORT}/${POSTGRES_DB}
-  #     MAX_LOAN_AMOUNT: ${MAX_LOAN_AMOUNT:-50000}
-  #     RISK_GRPC_ADDR: risk_scoring:${CONTAINER_GRPC_PORT}
-  #     SOAP_CHECK_URL: http://bank_check_validation:${container_rest_port}/ws
-  #     PROVIDER_URL: http://provider_funding:${CONTAINER_REST_PORT}/fund
-  #     SENDGRID_API_KEY: ${SENDGRID_API_KEY}
-  #     PORT: ${CONTAINER_REST_PORT}
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     risk_scoring:
-  #       condition: service_started
-  #     bank_check_validation:
-  #       condition: service_started
-  #     provider_funding:
-  #       condition: service_started
-  #   ports:
-  #     - "${ORCH_PORT}:${CONTAINER_REST_PORT}"
-  #   networks:
-  #     loan_app_backend:
-  #       aliases: [loan_orchestrator]
+  loan_orchestrator:
+    build: ./services/loan_orchestrator
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${CONTAINER_DB_PORT}/${POSTGRES_DB}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      RISK_GRPC_ADDR: risk_scoring:${CONTAINER_GRPC_PORT}
+      PROVIDER_URL: http://provider_funding:${CONTAINER_REST_PORT}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      PORT: ${CONTAINER_REST_PORT}
+    depends_on:
+      db:
+        condition: service_healthy
+      risk_scoring:
+        condition: service_started
+      # provider_funding:
+      #   condition: service_started
+    ports:
+      - "${ORCH_PORT}:${CONTAINER_REST_PORT}"
+    networks:
+      loan_app_backend:
+        aliases: [loan_orchestrator]
   
   # --- Risk Scoring (gRPC) ---------------------------------------------------
-  # risk_scoring:
-  #   build: ./services/risk_scoring
-  #   environment:
-  #     PORT: ${CONTAINER_GRPC_PORT}
-  #   ports:
-  #     - "${RISK_PORT}:${CONTAINER_GRPC_PORT}"
-  #   networks:
-  #     loan_app_backend:
-  #       aliases: [risk_scoring]
+  risk_scoring:
+    build: ./services/risk_scoring
+    environment:
+      PORT: ${CONTAINER_GRPC_PORT}
+    ports:
+      - "${RISK_PORT}:${CONTAINER_GRPC_PORT}"
+    networks:
+      loan_app_backend:
+        aliases: [risk_scoring]
   
   # --- Bank Check Validation (REST) -----------------------------------------
   bank_check_validation:
@@ -126,8 +112,8 @@ services:
     depends_on:
       bank_check_validation:
         condition: service_started
-    #   loan_orchestrator:
-    #     condition: service_started
+      loan_orchestrator:
+        condition: service_started
     #   accounts:
     #     condition: service_started
     ports:
