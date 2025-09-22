@@ -1,0 +1,16 @@
+syntax = "proto3";
+package risk;
+
+service RiskService {
+  rpc AnalyzeRisk (LoanRiskRequest) returns (LoanRiskReply);
+}
+
+message LoanRiskRequest {
+  int32 loan_id = 1;
+  string account_number = 2;
+}
+
+message LoanRiskReply {
+  string decision = 1;  // "PENDING" | "APPROVED" | "REJECTED" | "REVIEW" | "CANCELLED"
+  string risk_status = 2; // "UNKNOWN" | "HIGH" | "LOW"
+}
