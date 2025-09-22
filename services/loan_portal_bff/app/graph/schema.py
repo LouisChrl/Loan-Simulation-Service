@@ -13,20 +13,20 @@ class Query:
     # async def getLoanInformation(self, loan_id:strawberry.ID) -> Loan:
     #     response = await get_json(LOAN_BASE,f"/loans/{loan_id}")
     #     return Loan(
-    #         id = response["id"],
-    #         loan_amount = response["loan_amount"],
-    #         loan_status = response["status"]
+    #         id = response.get("id"),
+    #         loan_amount = response.get("loan_amount"),
+    #         loan_status = response.get("loan_status")
     #     )
     
     @strawberry.field
     async def getCheckInformation(self, check_number:str) -> Check:
         response = await get_json(CHECK_BASE,f"/checks/{check_number}")
         return Check(
-            id = response["id"],
-            check_number = response["check_number"],
-            account_number = response["account_number"],
-            check_amount = response["check_amount"],
-            check_status = response["check_status"]
+            id = response.get("id"),
+            check_number = response.get("check_number"),
+            account_number = response.get("account_number"),
+            check_amount = response.get("check_amount"),
+            check_status = response.get("check_status")
         )
 
 # GraphQL Mutation (WRITE)
@@ -42,15 +42,10 @@ class Mutation:
     #     response = await post_json(LOAN_BASE, "/loans", payload)
     #     loan = None
     #     if response.get("loan"):
-    #         loan = Loan(
-    #             id = response["loan"]["id"],
-    #             account_number = response["loan"]["account_number"],
-    #             loan_amount = response["loan"]["loan_amount"],
-    #             loan_status = response["loan"]["loan_status"]
-    #         )
+    #         loan = Loan(response.get("loan"))
     #     return LoanRequestResponse(
-    #         success = bool(response["success"]),
-    #         message = str(response["message"]),
+    #         success = bool(response.get("success")),
+    #         message = str(response.get("message")),
     #         loan = loan
     #     )
     
