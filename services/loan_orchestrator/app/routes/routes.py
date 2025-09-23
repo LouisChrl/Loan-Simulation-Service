@@ -92,7 +92,12 @@ def requestLoan(payload: RequestLoanPayload, db: Session = Depends(get_db)):
     # 5) Succès → APPROVED
     loan = update_loan_status(db, loan.id, "APPROVED")
     return RequestLoanResponse(
-        success=True,
-        message=f"Loan approved and funded (risk_status={risk_status})",
-        loan=LoanDTO.model_validate(loan)
+        success = True,
+        message = f"Loan approved and funded (risk_status={risk_status})",
+        loan = LoanDTO(
+            id = loan.id,
+            account_number = loan.account_number,
+            loan_amount = loan.loan_amount,
+            loan_status = loan.loan_status
+        )
     )
