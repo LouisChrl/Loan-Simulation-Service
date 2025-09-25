@@ -5,9 +5,9 @@ from pydantic import BaseModel, Field, condecimal
 from sqlalchemy.orm import Session
 from db.database import get_db
 from orm.orm import Loan
-from services.account_service import verifyAccountExistence, verifyAccountBalance, verifyBankPatternForAccount
+from services.account_service import verifyAccountExistence, verifyBankPatternForAccount
 from services.bank_service import verifyBankExistence
-from services.loan_service import create_pending_loan, get_risk_status, get_loan_status, update_loan_status # request_funds
+from services.loan_service import create_pending_loan, get_risk_status, get_loan_status, update_loan_status, request_funds
 
 router = APIRouter(prefix="/loans", tags=["loans"])
 
@@ -42,7 +42,7 @@ def getLoanInformation(loan_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/request", response_model=RequestLoanResponse)
-def requestLoan(payload: RequestLoanPayload, db: Session = Depends(get_db)):
+async def requestLoan(payload: RequestLoanPayload, db: Session = Depends(get_db)):
     # 0) Existence of the account, existence of the bank, account number validation
     if not verifyAccountExistence(db, payload.account_number):
         raise HTTPException(status_code=400, detail="Account not found")
@@ -59,7 +59,7 @@ def requestLoan(payload: RequestLoanPayload, db: Session = Depends(get_db)):
     # 2) Risk Scoring
     risk_status, decision = get_risk_status(loan_id=loan.id, account_number=payload.account_number)
 
-    if decision == "REJECT":
+    if decision == "REJECTED":
         loan = update_loan_status(db, loan.id, "REJECTED")
         return RequestLoanResponse(
             success=False,
@@ -75,22 +75,31 @@ def requestLoan(payload: RequestLoanPayload, db: Session = Depends(get_db)):
             loan=LoanDTO.model_validate(loan)
         )
 
+    if decision == "CANCELLED":
+        loan = update_loan_status(db, loan.id, "CANCELLED")
+        return RequestLoanResponse(
+            success=False,
+            message=f"Loan Cancelled (risk_status={risk_status})",
+            loan=LoanDTO.model_validate(loan)
+        )
+
     # 4) Provider funding
-    # ok, provider_msg = request_funds(
-    #     account_number=payload.account_number,
-    #     amount=float(payload.loan_amount)
-    # )
+    if decision == "APPROVED":
+        ok, provider_msg = await request_funds(
+            account_number=payload.account_number,
+            amount=float(payload.loan_amount)
+        )
 
-    # if not ok:
-    #     loan = update_loan_status(db, loan.id, "FAILED_FUNDING")
-    #     return RequestLoanResponse(
-    #         success=False,
-    #         message=f"Funding rejected: {provider_msg}",
-    #         loan=LoanDTO.model_validate(loan)
-    #     )
+        if not ok:
+            loan = update_loan_status(db, loan.id, "FAILED_FUNDING")
+            return RequestLoanResponse(
+                success=False,
+                message=f"Funding rejected: {provider_msg}",
+                loan=LoanDTO.model_validate(loan)
+            )
 
-    # 5) Succès → APPROVED
-    loan = update_loan_status(db, loan.id, "APPROVED")
+    # 5) Return message
+    loan = update_loan_status(db, loan.id, "FUNDED")
     return RequestLoanResponse(
         success = True,
         message = f"Loan approved and funded (risk_status={risk_status})",

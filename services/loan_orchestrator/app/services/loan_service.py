@@ -1,13 +1,13 @@
 from typing import Literal, Tuple
 from decimal import Decimal
 from sqlalchemy.orm import Session
-# import requests
+import httpx
 from orm.orm import Loan
 import os
 import grpc
 from proto import risk_pb2, risk_pb2_grpc
 
-RiskDecision = Literal["PENDING", "APPROVED", "REJECTED", "REVIEW", "CANCELLED"]
+RiskDecision = Literal["PENDING", "APPROVED", "REJECTED", "REVIEW", "FUNDED", "CANCELLED"]
 RiskStatus = Literal["HIGH", "LOW"]
 
 # ---------------- Core Loan Operations (DB) -----------------
@@ -50,9 +50,9 @@ def get_risk_status(loan_id: int, account_number: str) -> Tuple[RiskStatus, Risk
 
         decision_raw = (res.decision or "").upper()
         if decision_raw.startswith("APPROVED") or decision_raw.startswith("APPROVE"):
-            decision: RiskDecision = "APPROVE"
+            decision: RiskDecision = "APPROVED"
         elif decision_raw.startswith("REJECT"):
-            decision = "REJECT"
+            decision = "REJECTED"
         else:
             decision = "CANCELLED"
 
@@ -63,18 +63,21 @@ def get_risk_status(loan_id: int, account_number: str) -> Tuple[RiskStatus, Risk
     except grpc.RpcError:
         return "UNKNOWN", "REVIEW"
 
-# def request_funds(account_number: str, amount: float) -> Tuple[bool, str]:
-#     provider_url = os.getenv("PROVIDER_URL")
-#     payload = {"account_number": account_number, "amount": amount}
-#     try:
-#         r = requests.post(provider_url, json=payload, timeout=10)
-#         if r.status_code != 200:
-#             try:
-#                 msg = r.json().get("message", r.text)
-#             except Exception:
-#                 msg = r.text
-#             return False, f"provider funding error: {msg}"
-#         data = r.json()
-#         return bool(data.get("success", False)), str(data.get("message", ""))
-#     except requests.RequestException as e:
-#         return False, f"provider funding unreachable: {e}"
+async def request_funds(account_number: str, amount: float) -> Tuple[bool, str]:
+    provider_url = os.getenv("PROVIDER_URL")
+    payload = {"account_number": account_number, "amount": amount}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(provider_url, json=payload)
+        if r.status_code != 200:
+            try:
+                msg = r.json().get("provider_msg", r.text)
+            except Exception:
+                msg = r.text
+            return False, f"provider funding error: {msg}"
+        data = r.json()
+        ok = bool(data.get("ok"))
+        provider_msg = str(data.get("provider_msg"))
+        return ok, provider_msg
+    except httpx.RequestError as e:
+        return False, f"provider funding unreachable: {e}"
