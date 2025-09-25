@@ -91,15 +91,20 @@ services:
         aliases: [bank_check_validation]
   
   # --- Provider Funding (REST, stub) ----------------------------------------
-  # provider_funding:
-  #   build: ./services/provider_funding
-  #   environment:
-  #     PORT: ${CONTAINER_REST_PORT}
-  #   ports:
-  #     - "${PROVIDER_PORT}:${CONTAINER_REST_PORT}"
-  #   networks:
-  #      loan_app_backend:
-  #        aliases: [provider_funding]
+  provider_funding:
+    build: ./services/provider_funding
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      PORT: ${CONTAINER_REST_PORT}
+    ports:
+      - "${PROVIDER_PORT}:${CONTAINER_REST_PORT}"
+    networks:
+       loan_app_backend:
+         aliases: [provider_funding]
   
   # --- Loan Portal BFF (GraphQL) --------------------------------------------
   loan_portal_bff:
