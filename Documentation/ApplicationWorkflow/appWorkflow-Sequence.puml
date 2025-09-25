@@ -1,56 +1,77 @@
 @startuml
-title Sequence – Loan request end-to-end
+title appWorkflow-sequence
+
+skinparam shadowing false
+skinparam wrapWidth 240
+skinparam defaultFontName Monospace
 
 actor Client
-participant "GraphQL BackEnd for FrontEnd" as BFF
+participant "GraphQL BFF" as BFF
 participant "Loan Orchestrator (REST)" as ORCH
 participant "Risk Scoring (gRPC)" as RISK
-participant "Bank Check Validation (SOAP)" as SOAP
 participant "Provider Funding (REST)" as PROV
+participant "Bank Check Validation (REST)" as CHECK
 database "PostgreSQL" as DB
 
-== Loan creation ==
-Client -> BFF : mutation createLoan(customerId, accountId, type, amount, desc)
-BFF -> ORCH : POST /loans { ... }
-ORCH -> DB : INSERT loan_application(status='pending')
-ORCH -> DB : INSERT loan_monitoring(...)
-ORCH -> ORCH : check MAX_LOAN_AMOUNT
-alt amount > MAX_LOAN_AMOUNT
-  ORCH -> DB : UPDATE loan_application SET status='cancelled'
-  ORCH --> BFF : {status:'cancelled'}
-  BFF --> Client : cancelled
-  return
-else amount OK
-  ORCH -> RISK : Score(customerId, amount, type)
-  RISK --> ORCH : {riskLevel}
-  alt riskLevel='high' and amount>=20000
-    ORCH -> DB : UPDATE loan_application SET status='declined'
-    ORCH --> BFF : {status:'declined'}
-    BFF --> Client : declined
-    return
-  else continue
-    ORCH --> BFF : {status:'pending'} (waiting for cashier's check)
-    BFF --> Client : pending
+' =========================
+' Loan request (mutation)
+' =========================
+== Loan request ==
+Client -> BFF : mutation requestLoan(input:{account_number, loan_amount})
+BFF -> ORCH : POST /loans/request {account_number, loan_amount}
+
+ORCH -> DB : INSERT loan_application(status='PENDING')\nINSERT/UPDATE loan_monitoring(...)
+ORCH -> RISK : AnalyzeRisk(account_number, amount)
+RISK --> ORCH : {riskLevel, decision}
+
+alt decision == REJECT
+  ORCH -> DB : UPDATE loan_application SET status='REJECTED'
+  ORCH --> BFF : {success:false, message, loan{...}}
+  BFF --> Client : GraphQL payload
+else decision == REVIEW
+  ORCH -> DB : UPDATE loan_application SET status='REVIEW'
+  ORCH --> BFF : {success:false, message, loan{...}}
+  BFF --> Client : GraphQL payload
+else decision == APPROVE
+  ORCH -> PROV : POST /fund {account_number, amount}
+  PROV --> ORCH : {success, transfer_id?, message}
+  alt funding ok
+    ORCH -> DB : UPDATE loan_application SET status='APPROVED'
+    ORCH --> BFF : {success:true, message, loan{...}}
+    BFF --> Client : GraphQL payload
+  else funding failed
+    ORCH -> DB : UPDATE loan_application SET status='FAILED_FUNDING'
+    ORCH --> BFF : {success:false, message, loan{...}}
+    BFF --> Client : GraphQL payload
   end
 end
 
-== Cashier's check submission ==
-Client -> BFF : mutation submitCheck(loanId, accountId, checkNumber, ...)
-BFF -> ORCH : POST /loans/{id}/check { ... }
-ORCH -> DB : INSERT cashier_check(is_valid=false)
-ORCH -> SOAP : ValidateCashierCheck(...)
-SOAP --> ORCH : {isValid:true|false}
-alt invalid check
-  ORCH -> DB : UPDATE loan_application SET status='declined'
-  ORCH --> BFF : {status:'declined'}
-  BFF --> Client : declined
-else valid check
-  ORCH -> DB : UPDATE loan_application SET status='approved'
-  ORCH -> PROV : POST /fund {applicationId, accountId, amount}
-  PROV --> ORCH : {transferId, status:'funded'}
-  ORCH -> DB : UPDATE loan_monitoring SET loan_provider_status='funded'
-  ORCH --> BFF : {status:'approved', transferId}
-  BFF --> Client : approved
-end
+' =========================
+' Check deposit (mutation)
+' =========================
+== Check deposit ==
+Client -> BFF : mutation depositCheck(input:{account_number,\ncheck_number, check_bank_id,\ncheck_account_number, check_amount})
+BFF -> CHECK : POST /checks/deposit { ... }
+
+CHECK -> DB : SELECT bank/account\n+ validations (regex, existence, balance)
+CHECK -> DB : INSERT/UPDATE bank_check(status)
+CHECK --> BFF : {success, message, check_id?}
+BFF --> Client : GraphQL payload
+
+' =========================
+' Queries (reads)
+' =========================
+== Queries ==
+Client -> BFF : query getCheckInformation(check_number)
+BFF -> CHECK : GET /checks/{check_number}
+CHECK -> DB : SELECT * FROM bank_check WHERE check_number=...
+CHECK --> BFF : {id, check_number, bank_id,\naccount_number, check_amount, status}
+BFF --> Client : GraphQL data
+
+Client -> BFF : query getLoanInformation(loan_id)
+BFF -> ORCH : GET /loans/{loan_id}
+ORCH -> DB : SELECT * FROM loan_application WHERE id=...
+ORCH --> BFF : LoanDTO {id, account_number, loan_amount, loan_status}
+BFF --> Client : GraphQL data
 
 @enduml
