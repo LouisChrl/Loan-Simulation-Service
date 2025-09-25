@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS loan (
   loan_amount NUMERIC(15, 2) NOT NULL,
   loan_status VARCHAR(20) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT loan_status_chk CHECK (loan_status IN ('PENDING','APPROVED','REJECTED','CANCELLED', 'REVIEW')),
+  CONSTRAINT loan_status_chk CHECK (loan_status IN ('PENDING','APPROVED','REJECTED','FUNDED','CANCELLED','REVIEW')),
   CONSTRAINT loan_amount_pos_chk CHECK (loan_amount > 0)
 );
 
