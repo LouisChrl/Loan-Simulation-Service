@@ -55,8 +55,8 @@ services:
         condition: service_healthy
       risk_scoring:
         condition: service_started
-      # provider_funding:
-      #   condition: service_started
+      provider_funding:
+        condition: service_started
     ports:
       - "${ORCH_PORT}:${CONTAINER_REST_PORT}"
     networks:
