@@ -13,7 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [ rest_service, graphql_service, grpc_service ]
+        service:
+          - services/loan_portal_bff
+          - services/bank_check_validation
+          - services/provider_funding
+          - services/loan_orchestrator
 
     services:
       postgres:
@@ -29,10 +33,11 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=10
 
     env:
+      # Connection to DB
       PGHOST: localhost
       PGPORT: ${{ job.services.postgres.ports['5432'] }}
-      DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:${{ job.services.postgres.ports['5432'] }}/${{ secrets.POSTGRES_DB }}
-      SERVICE_DIR: ./${{ matrix.service }}
+      DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@${{ env.PGHOST }}:${{ env.PGPORT }}/${{ secrets.POSTGRES_DB }}
+      SERVICE_DIR: ${{ matrix.service }}
 
     steps:
       - name: Checkout
@@ -48,10 +53,10 @@ jobs:
 
       - name: Install psql client
         run: |
-          sudo apt-get update -y
+          sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - name: Install dependencies for ${{ matrix.service }}
+      - name: Install Python deps for ${{ matrix.service }}
         run: |
           python -m pip install --upgrade pip
           if ls "$SERVICE_DIR"/requirements*.txt >/dev/null 2>&1; then
@@ -64,57 +69,51 @@ jobs:
           fi
           pip install pytest pytest-cov
 
-      - name: Apply schema (db/init)
+      - name: Apply schema db/init.sql (if present)
         env:
           PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
-          DB="${{ secrets.POSTGRES_DB }}"
-          if compgen -G "db/init/*.sql" > /dev/null; then
-            for f in $(ls db/init/*.sql 2>/dev/null | sort); do
-              echo "Applying schema: $f"
-              psql -h "$PGHOST" -p "$PGPORT" -U "${{ secrets.POSTGRES_USER }}" \
-                   -d "$DB" -v ON_ERROR_STOP=1 -f "$f"
-            done
+          if [ -f db/init.sql ]; then
+            echo "Applying db/init.sql"
+            psql -h "$PGHOST" -p "$PGPORT" -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" -v ON_ERROR_STOP=1 -f db/init.sql
           else
-            echo "No db/init SQL; skipping."
+            echo "No db/init.sql"
           fi
 
-      - name: Seed CI data (db_ci_test/seed)
+      - name: Seed db/sample_data.sql (if present)
         env:
           PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          SEED_DIR: db_ci_test/seed
         run: |
-          DB="${{ secrets.POSTGRES_DB }}"
-          if compgen -G "$SEED_DIR/*.sql" > /dev/null; then
-            for f in $(ls "$SEED_DIR"/*.sql 2>/dev/null | sort); do
-              echo "Seeding: $f"
-              psql -h "$PGHOST" -p "$PGPORT" -U "${{ secrets.POSTGRES_USER }}" \
-                   -d "$DB" -v ON_ERROR_STOP=1 -f "$f"
-            done
+          if [ -f db/sample_data.sql ]; then
+            echo "Seeding db/sample_data.sql"
+            psql -h "$PGHOST" -p "$PGPORT" -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" -v ON_ERROR_STOP=1 -f db/sample_data.sql
           else
-            echo "No CI seeds in $SEED_DIR; skipping."
+            echo "No db/sample_data.sql"
           fi
 
       - name: Run tests for ${{ matrix.service }}
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
         run: |
-          CODE_DIR="$SERVICE_DIR/app"
-          if [ -d "$CODE_DIR" ]; then
-            pytest "$CODE_DIR" -q --maxfail=1 --disable-warnings \
-              --cov="$CODE_DIR" --cov-report=xml:cov-${{ matrix.service }}.xml
+          # Cherche un dossier de tests standard
+          if compgen -G "$SERVICE_DIR/tests/*.py" > /dev/null; then
+            echo "Running tests in $SERVICE_DIR"
+            pytest "$SERVICE_DIR" -q --maxfail=1 --disable-warnings \
+              --cov="$SERVICE_DIR" --cov-report=xml:cov-${{ matrix.service##*/ }}.xml
           else
-            echo "No $CODE_DIR; running service root if tests exist."
-            if compgen -G "$SERVICE_DIR/tests/*.py" > /dev/null; then
-              pytest "$SERVICE_DIR" -q --maxfail=1 --disable-warnings \
-                --cov="$SERVICE_DIR" --cov-report=xml:cov-${{ matrix.service }}.xml
+            # Sinon, essaie app/ comme racine de code
+            if [ -d "$SERVICE_DIR/app" ]; then
+              echo "Running tests in $SERVICE_DIR/app (fallback)"
+              pytest "$SERVICE_DIR/app" -q --maxfail=1 --disable-warnings \
+                --cov="$SERVICE_DIR/app" --cov-report=xml:cov-${{ matrix.service##*/ }}.xml
             else
               echo "No tests found for $SERVICE_DIR; skipping."
+              echo "<?xml version=\"1.0\" ?><coverage></coverage>" > cov-${{ matrix.service##*/ }}.xml
             fi
           fi
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.service }}
-          path: cov-${{ matrix.service }}.xml
+          name: coverage-${{ matrix.service##*/ }}
+          path: cov-${{ matrix.service##*/ }}.xml

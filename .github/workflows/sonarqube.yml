@@ -1,0 +1,132 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches: [ staging, preprod, main ]
+  pull_request:
+    branches: [ staging, preprod, main ]
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - services/loan_portal_bff
+          - services/bank_check_validation
+          - services/provider_funding
+          - services/loan_orchestrator
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd="pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+
+    env:
+      PGHOST: localhost
+      PGPORT: ${{ job.services.postgres.ports['5432'] }}
+      DATABASE_URL: >-
+        postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@
+        ${{ env.PGHOST }}:${{ env.PGPORT }}/${{ secrets.POSTGRES_DB }}
+      SERVICE_DIR: ${{ matrix.service }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            ${{ env.SERVICE_DIR }}/requirements*.txt
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install Python deps for ${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          if ls "$SERVICE_DIR"/requirements*.txt >/dev/null 2>&1; then
+            for req in "$SERVICE_DIR"/requirements*.txt; do
+              echo "Installing $req"
+              pip install -r "$req"
+            done
+          else
+            echo "No requirements*.txt in $SERVICE_DIR"
+          fi
+          pip install pytest pytest-cov
+
+      - name: Apply schema db/init.sql (if present)
+        env:
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          if [ -f db/init.sql ]; then
+            echo "Applying db/init.sql"
+            psql -h "$PGHOST" -p "$PGPORT" -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" -v ON_ERROR_STOP=1 -f db/init.sql
+          else
+            echo "No db/init.sql"
+          fi
+
+      - name: Seed db/sample_data.sql (if present)
+        env:
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          if [ -f db/sample_data.sql ]; then
+            echo "Seeding db/sample_data.sql"
+            psql -h "$PGHOST" -p "$PGPORT" -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" -v ON_ERROR_STOP=1 -f db/sample_data.sql
+          else
+            echo "No db/sample_data.sql"
+          fi
+
+      - name: Run tests & generate coverage.xml
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          set -e
+          cd "$SERVICE_DIR"
+          if compgen -G "tests/*.py" > /dev/null; then
+            echo "Running tests in $SERVICE_DIR"
+            pytest -q --maxfail=1 --disable-warnings \
+              --cov=. --cov-report=xml:coverage.xml
+          else
+            echo "No tests found in $SERVICE_DIR; creating empty coverage.xml"
+            echo '<?xml version="1.0" ?><coverage></coverage>' > coverage.xml
+          fi
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: ${{ env.SERVICE_DIR }}
+          args: >-
+            -Dsonar.projectKey=${{ github.repository }}:${{ matrix.service }}
+            -Dsonar.projectName=${{ matrix.service }}
+            -Dsonar.sources=app
+            -Dsonar.tests=tests
+            -Dsonar.python.version=3.12
+            -Dsonar.exclusions=**/tests/**,**/*_test.py
+            -Dsonar.coverage.exclusions=**/tests/**
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+
+      - name: SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
